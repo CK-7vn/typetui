@@ -1,27 +1,26 @@
-use std::{cmp, io};
+use std::io;
 
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::prelude::Backend;
 
+#[allow(dead_code)]
 use crate::{typingtest::TypingTest, ui};
-pub enum Menu {
-    Main,
-    Type,
+
+//to hold the current screen that the user is viewing
+pub enum Screen {
+    Main { selected_option: usize },
+    Typing,
     Login,
     Stats,
     Quit,
 }
-//to hold the current screen that the user is viewing
-pub enum CurrentScreen {
-    Main,
-    Typing,
-    Exiting,
-}
+#[allow(dead_code)]
 struct User {
     pub username: String,
     pub pb_wpm: u32,
 }
 
+#[allow(dead_code)]
 impl User {
     pub fn new() -> User {
         User {
@@ -34,12 +33,11 @@ impl User {
     }
 }
 
+#[allow(dead_code)]
 pub struct TypeTui {
     user: Option<User>, // wrap the user in an option incase we're doing an anon test
-    pub current_screen: CurrentScreen,
+    pub current_screen: Screen,
     pub typing: Option<TypingTest>, //option allows you to model absence of a value
-    pub menu: Menu,
-    pub selected_option: usize, //holds index of menu option
 }
 
 impl Default for TypeTui {
@@ -54,10 +52,8 @@ impl TypeTui {
                 username: String::new(),
                 pb_wpm: 7,
             }),
-            current_screen: CurrentScreen::Main,
+            current_screen: Screen::Main { selected_option: 0 },
             typing: None,
-            menu: Menu::Main,
-            selected_option: 2,
         }
     }
 }
@@ -77,66 +73,59 @@ pub fn run_app<B: Backend>(
                 continue;
             }
 
-            handle_menu_input(key.code, app);
+            if let Some(result) = handle_menu_input(key.code, app) {
+                return result;
+            }
+
             match app.current_screen {
-                CurrentScreen::Main => match key.code {
-                    //Match to the main screen
-                    KeyCode::Char('m') => {
-                        //Matches to the e
-                        //character keypress and sets current screen to
-                        //editing and currently editing to key
-                        app.current_screen = CurrentScreen::Main;
-                    }
-                    KeyCode::Char('q') => {
-                        app.current_screen = CurrentScreen::Exiting;
-                        //return Ok(false);
+                Screen::Quit => match key.code {
+                    KeyCode::Char('y') => return Ok(false),
+                    KeyCode::Char('n') => {
+                        app.current_screen = Screen::Main { selected_option: 0 };
                     }
                     _ => {}
                 },
-                CurrentScreen::Exiting => match key.code {
-                    KeyCode::Char('y') => {
-                        return Ok(false);
-                    }
-                    KeyCode::Char('n') | KeyCode::Char('q') => {
-                        return Ok(false);
-                    }
-                    _ => {}
-                },
-                // if the user is editing, are they editing a value or key, match
-                // on that and then perform the right actions
                 _ => {}
             }
         }
     }
 }
 // mutable reference to the app to change state, and a keycode
-pub fn handle_menu_input(key: KeyCode, app: &mut TypeTui) {
-    if let Menu::Main = app.menu {
+pub fn handle_menu_input(key: KeyCode, app: &mut TypeTui) -> Option<io::Result<bool>> {
+    if let Screen::Main {
+        ref mut selected_option,
+    } = app.current_screen
+    {
+        let num_options = 4;
         match key {
             KeyCode::Up => {
-                if app.selected_option > 0 {
-                    app.selected_option -= 1;
-                } else if app.selected_option == 0 {
-                    app.selected_option = 3;
+                if *selected_option == 0 {
+                    *selected_option = num_options - 1;
+                } else {
+                    *selected_option -= 1;
                 }
             }
             KeyCode::Down => {
-                if app.selected_option < 3 {
-                    app.selected_option += 1;
-                } else if app.selected_option == 3 {
-                    app.selected_option = 0;
+                if *selected_option == num_options - 1 {
+                    *selected_option = 0;
+                } else {
+                    *selected_option += 1;
                 }
             }
             //when the user presses enter we'll check the selected options value and
             //then switch menu's based on that
-            KeyCode::Enter => match app.selected_option {
-                0 => app.menu = Menu::Type,
-                1 => app.menu = Menu::Login,
-                2 => app.menu = Menu::Stats,
-                3 => app.menu = Menu::Quit,
+            KeyCode::Enter => match *selected_option {
+                0 => app.current_screen = Screen::Typing,
+                1 => app.current_screen = Screen::Login,
+                2 => app.current_screen = Screen::Stats,
+                3 => {
+                    app.current_screen = Screen::Quit;
+                    return Some(Ok(false));
+                }
                 _ => {}
             },
             _ => {}
         }
     }
+    None
 }

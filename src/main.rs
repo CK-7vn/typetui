@@ -3,11 +3,8 @@ pub mod app;
 pub mod typingtest;
 pub mod ui;
 
-use app::CurrentScreen;
-use app::TypeTui;
-use crossterm::{
-    event::{self, Event},
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+use crossterm::terminal::{
+    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
 use ratatui::{
     crossterm::event::{DisableMouseCapture, EnableMouseCapture, KeyCode, KeyEventKind},

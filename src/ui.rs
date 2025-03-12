@@ -1,5 +1,3 @@
-use color_eyre::owo_colors::OwoColorize;
-use crossterm::event::{self, Event};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style},
@@ -8,10 +6,9 @@ use ratatui::{
     Frame,
 };
 
-use crate::app::{handle_menu_input, CurrentScreen, Menu, TypeTui};
+use crate::app::{Screen, TypeTui};
 
 pub fn ui(frame: &mut Frame, app: &TypeTui) {
-    // we now have 3 chunks a title chunk at chunk[0], main chunk at chunk[1] and footer
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints(vec![
@@ -22,36 +19,45 @@ pub fn ui(frame: &mut Frame, app: &TypeTui) {
         .split(frame.area());
 
     render_title(frame, chunks[0]);
-    match app.menu {
-        Menu::Main => render_menu(frame, chunks[1], app),
-        Menu::Login => todo!(),
-        Menu::Stats => todo!(),
-        Menu::Type => todo!(),
-        Menu::Quit => render_quit(frame, app),
+    match app.current_screen {
+        Screen::Main { selected_option } => {
+            let popup_area = centered_rect(60, 50, frame.area());
+            render_menu(frame, popup_area, selected_option);
+        }
+        Screen::Login => todo!(),
+        Screen::Stats => todo!(),
+        Screen::Typing => todo!(),
+        Screen::Quit => render_quit(frame, app),
     }
 }
 
-pub fn render_menu(frame: &mut Frame, chunk: Rect, app: &TypeTui) {
+pub fn render_menu(frame: &mut Frame, chunk: Rect, selected_option: usize) {
     let options = ["Test", "Login", "Stats", "Quit"];
+
     let items: Vec<ListItem> = options.iter().map(|&s| ListItem::new(s)).collect();
+
+    let popup_block = Block::default()
+        .borders(Borders::ALL)
+        .title("Main Menu")
+        .title_alignment(ratatui::layout::Alignment::Center);
     let list = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title("Main Menu"))
+        .block(popup_block)
         .highlight_style(Style::default().fg(Color::Yellow))
         .highlight_symbol("-> ");
     let mut list_state = ListState::default();
-    list_state.select(Some(app.selected_option));
+    list_state.select(Some(selected_option));
     frame.render_stateful_widget(list, chunk, &mut list_state);
 }
 
 pub fn render_quit(frame: &mut Frame, app: &TypeTui) {
     let popup_block = Block::default()
         .title("y/n")
-        .borders(Borders::NONE)
+        .borders(Borders::ALL)
         .style(Style::default().bg(Color::LightRed));
 
     let exit_text = Text::styled(
         "Would you like to quit (y/n)",
-        Style::default().fg(Color::Red),
+        Style::default().fg(Color::Gray),
     );
 
     let exit_paragraph = Paragraph::new(exit_text)
@@ -93,4 +99,15 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
             Constraint::Percentage((100 - percent_x) / 2),
         ])
         .split(popup_layout[1])[1]
+}
+
+fn center_text(text: &str, width: u16) -> String {
+    let effective_width = width.saturating_sub(3);
+    let text_width = text.len() as u16;
+    if text_width >= effective_width {
+        return text.to_string();
+    }
+    let padding = (effective_width - text_width) / 2;
+    let pad = " ".repeat(padding as usize);
+    format!("{}{}{}", pad, text, pad)
 }
