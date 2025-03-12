@@ -1,4 +1,3 @@
-use std::time::Instant;
 
 #[allow(dead_code)]
 pub struct TypingTest {

@@ -7,7 +7,7 @@ use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
 use ratatui::{
-    crossterm::event::{DisableMouseCapture, EnableMouseCapture, KeyCode, KeyEventKind},
+    crossterm::event::{DisableMouseCapture, EnableMouseCapture},
     prelude::{Backend, CrosstermBackend},
 };
 use std::{error::Error, io};
