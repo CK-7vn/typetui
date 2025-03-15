@@ -1,8 +1,9 @@
+use std::time::Instant;
 
-#[allow(dead_code)]
 pub struct TypingTest {
-    pub user_input: String,
     pub test_text: String,
+    pub user_input: String,
+    pub wpm: u32,
 }
 
 impl Default for TypingTest {
@@ -13,8 +14,9 @@ impl Default for TypingTest {
 impl TypingTest {
     pub fn new() -> TypingTest {
         TypingTest {
+            test_text: "Here is an example".to_string(),
             user_input: String::new(),
-            test_text: "How about this test i guess".to_string(),
+            wpm: 0,
         }
     }
 }

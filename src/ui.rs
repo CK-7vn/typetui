@@ -1,12 +1,15 @@
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style},
-    text::Text,
+    text::{Line, Span, Text},
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Wrap},
     Frame,
 };
 
-use crate::app::{Screen, TypeTui};
+use crate::{
+    app::{Screen, TypeTui},
+    typingtest::TypingTest,
+};
 
 pub fn ui(frame: &mut Frame, app: &TypeTui) {
     let chunks = Layout::default()
@@ -26,11 +29,10 @@ pub fn ui(frame: &mut Frame, app: &TypeTui) {
         }
         Screen::Login => todo!(),
         Screen::Stats => todo!(),
-        Screen::Typing => todo!(),
+        Screen::Typing => render_typing_test(frame, chunks[1], &app.typing),
         Screen::Quit => render_quit(frame, app),
     }
 }
-
 pub fn render_menu(frame: &mut Frame, chunk: Rect, selected_option: usize) {
     let options = ["Test", "Login", "Stats", "Quit"];
 
@@ -90,6 +92,7 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
             Constraint::Percentage((100 - percent_y) / 2),
         ])
         .split(r);
+
     //Splitting into width wise pieces
     Layout::default()
         .direction(Direction::Horizontal)
@@ -100,7 +103,33 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         ])
         .split(popup_layout[1])[1]
 }
+pub fn render_typing_test(frame: &mut Frame, chunk: Rect, typing: &TypingTest) {
+    let test_chars: Vec<char> = typing.test_text.chars().collect();
+    let input_chars: Vec<char> = typing.user_input.chars().collect();
 
+    let spans: Vec<Span> = test_chars
+        .iter()
+        .enumerate()
+        .map(|(i, &c)| {
+            if i < input_chars.len() {
+                if input_chars[i] == c {
+                    Span::styled(c.to_string(), Style::default().fg(Color::Green))
+                } else {
+                    Span::styled(c.to_string(), Style::default().fg(Color::Red))
+                }
+            } else {
+                Span::raw(c.to_string())
+            }
+        })
+        .collect();
+
+    let paragraph = Paragraph::new(Line::from(spans))
+        .block(Block::default().borders(Borders::ALL))
+        .alignment(ratatui::layout::Alignment::Center);
+    frame.render_widget(paragraph, chunk);
+}
+
+#[allow(dead_code)]
 fn center_text(text: &str, width: u16) -> String {
     let effective_width = width.saturating_sub(3);
     let text_width = text.len() as u16;
