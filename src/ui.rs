@@ -1,5 +1,6 @@
 use std::{error::Error, io};
 
+use color_eyre::owo_colors::OwoColorize;
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
     execute,
@@ -128,6 +129,19 @@ pub fn render_menu(frame: &mut Frame, chunk: Rect, selected_option: usize) -> Ap
     Ok(())
 }
 
+pub fn render_stats(frame: &mut Frame, test: &TypingTest) -> AppResult<()> {
+    let wpm = test.wpm;
+    let popup_block = Block::default()
+        .borders(Borders::ALL)
+        .title("Stats")
+        .title_alignment(ratatui::layout::Alignment::Center);
+    let wpm_span = Text::styled(wpm.to_string(), Style::default().fg(Color::LightMagenta));
+
+    let area = centered_rect(60, 25, frame.area());
+    frame.render_widget(wpm_span, area);
+    Ok(())
+}
+
 pub fn render_quit(frame: &mut Frame) -> AppResult<()> {
     let popup_block = Block::default()
         .title("y/n")
@@ -188,6 +202,9 @@ pub fn ui(f: &mut Frame, app: &TypeTui) -> crate::app::AppResult<()> {
         }
         Screen::Quit => {
             render_quit(f)?;
+        }
+        Screen::Stats => {
+            render_stats(f, &app.typing)?;
         }
         _ => {}
     }

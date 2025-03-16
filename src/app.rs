@@ -66,18 +66,6 @@ impl TypeTui {
     //move cursor up
 
     // move cusor down
-    fn handle_typing_input(key: KeyCode, app: &mut TypeTui) {
-        let test = &mut app.typing;
-        match key {
-            KeyCode::Char(c) => {
-                test.user_input.push(c);
-            }
-            KeyCode::Backspace => {
-                test.user_input.pop();
-            }
-            _ => {}
-        }
-    }
 
     pub async fn run_app<B: ratatui::prelude::Backend>(
         terminal: &mut ratatui::Terminal<B>,
@@ -104,7 +92,10 @@ impl TypeTui {
                                 let _ = TypeTui::handle_menu_input(key_event.code, app);
                             }
                             crate::app::Screen::Typing => {
-                                TypeTui::handle_typing_input(key_event.code, app);
+                                TypingTest::handle_typing_input(key_event.code, app);
+                            }
+                            crate::app::Screen::Stats => {
+                                todo!();
                             }
                             crate::app::Screen::Quit => {
                                 if key_event.code == KeyCode::Char('y') {
