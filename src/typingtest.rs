@@ -1,5 +1,6 @@
 use std::time::Instant;
 
+#[derive(Clone, Debug)]
 pub struct TypingTest {
     pub test_text: String,
     pub user_input: String,

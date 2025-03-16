@@ -1,12 +1,12 @@
 use std::io;
 
-use crossterm::event::{self, Event, KeyCode};
-use ratatui::prelude::Backend;
+use crossterm::event::KeyCode;
 
-#[allow(dead_code)]
 use crate::{typingtest::TypingTest, ui};
 
-//to hold the current screen that the user is viewing
+pub type AppResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+
+#[derive(Clone, Copy, Debug)]
 pub enum Screen {
     Main { selected_option: usize },
     Typing, //return string or bec of char's
@@ -16,6 +16,7 @@ pub enum Screen {
 }
 
 #[allow(dead_code)]
+#[derive(Debug, Clone, Copy)]
 enum InputMode {
     Normal,
     Editing,
@@ -28,6 +29,7 @@ enum InputMode {
 //index of cursor x if thats the typing test than handle_typetest_input
 //do everything on the app...don't make it more difficult than it has to be
 #[allow(dead_code)]
+#[derive(Clone, Debug)]
 pub struct TypeTui {
     pub current_screen: Screen,
     pub cursor: (usize, usize),
@@ -77,56 +79,50 @@ impl TypeTui {
         }
     }
 
-    //generic over backend, we're using crossterm here. also takes a mutable reference to our app
-    pub fn run_app<B: Backend>(
+    pub async fn run_app<B: ratatui::prelude::Backend>(
         terminal: &mut ratatui::Terminal<B>,
         app: &mut TypeTui,
+        event_handler: &mut crate::event::AppEventHandler,
     ) -> io::Result<bool> {
         loop {
-            //terminal is the terminal<backend> that we take as an argument and draw is the
-            //ratatui command that draws a Frame to the terminal
-            terminal.draw(|f| ui::ui(f, app))?; // this is a closure that tells draw that we want to
-                                                // take f:Frame and pass it t our function ui and ui will draw to that Frame
-            if let Event::Key(key) = event::read()? {
-                if key.kind == event::KeyEventKind::Release {
-                    continue;
-                }
+            terminal.draw(|f| {
+                ui::ui(f, app).unwrap();
+            })?;
 
-                std::thread::spawn(move || -> io::Result<bool> {
-                    loop {
-                        if event::poll(std::time::Duration::from_millis(100))? {
-                            if let Event::Key(key_event) = event::read()? {
-                                if key_event.code == KeyCode::Char('c')
-                                    && key_event
-                                        .modifiers
-                                        .contains(crossterm::event::KeyModifiers::CONTROL)
-                                {
+            if let Some(event) = event_handler.next().await {
+                match event {
+                    crate::event::AppEvent::Key(key_event) => {
+                        if key_event.code == KeyCode::Char('c')
+                            && key_event
+                                .modifiers
+                                .contains(crossterm::event::KeyModifiers::CONTROL)
+                        {
+                            return Ok(false);
+                        }
+                        match app.current_screen {
+                            crate::app::Screen::Main { .. } => {
+                                let _ = TypeTui::handle_menu_input(key_event.code, app);
+                            }
+                            crate::app::Screen::Typing => {
+                                TypeTui::handle_typing_input(key_event.code, app);
+                            }
+                            crate::app::Screen::Quit => {
+                                if key_event.code == KeyCode::Char('y') {
                                     return Ok(false);
+                                } else if key_event.code == KeyCode::Char('n') {
+                                    app.current_screen =
+                                        crate::app::Screen::Main { selected_option: 0 };
                                 }
                             }
+                            _ => {}
                         }
                     }
-                });
-                //method on app called handle input
-
-                match app.current_screen {
-                    Screen::Main { .. } => {
-                        if let Some(result) = Self::handle_menu_input(key.code, app) {
-                            return result;
-                        }
-                    }
-                    Screen::Quit => match key.code {
-                        KeyCode::Char('y') => return Ok(false),
-                        KeyCode::Char('n') => {
-                            app.current_screen = Screen::Main { selected_option: 0 };
-                        }
-                        _ => {}
-                    },
-                    Screen::Typing => {
-                        Self::handle_typing_input(key.code, app);
-                    }
-                    _ => {}
+                    crate::event::AppEvent::Tick => {}
                 }
+            }
+
+            if let crate::app::Screen::Quit = app.current_screen {
+                return Ok(false);
             }
         }
     }

@@ -3,6 +3,7 @@ use std::time::{Duration, Instant};
 use crossterm::event::{self, Event, KeyEvent};
 
 #[allow(dead_code)]
+#[derive(Debug, Clone)]
 pub enum AppEvent {
     Tick,
     Key(KeyEvent),
@@ -25,7 +26,7 @@ impl AppEventHandler {
         let handler = {
             tokio::spawn(async move {
                 let sender = send_event.clone();
-                let mut last_tick = Instant::now();
+                let last_tick = Instant::now();
                 loop {
                     let timeout = tick_rate
                         .checked_sub(last_tick.elapsed())
