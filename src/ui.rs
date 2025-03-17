@@ -1,6 +1,5 @@
 use std::{error::Error, io};
 
-use color_eyre::owo_colors::OwoColorize;
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
     execute,
@@ -110,7 +109,7 @@ pub fn render_typing_test(frame: &mut Frame, chunk: Rect, typing: &TypingTest) -
 }
 
 pub fn render_menu(frame: &mut Frame, chunk: Rect, selected_option: usize) -> AppResult<()> {
-    let options = ["Test", "Login", "Stats", "Quit"];
+    let options = ["Test", "Login", "Stats", "Quit", "TestOpts"];
 
     let items: Vec<ListItem> = options.iter().map(|&s| ListItem::new(s)).collect();
 
@@ -135,10 +134,17 @@ pub fn render_stats(frame: &mut Frame, test: &TypingTest) -> AppResult<()> {
         .borders(Borders::ALL)
         .title("Stats")
         .title_alignment(ratatui::layout::Alignment::Center);
-    let wpm_span = Text::styled(wpm.to_string(), Style::default().fg(Color::LightMagenta));
+
+    let fmt_wpm = format!("{} WPM", wpm);
+
+    let wpm_span = Text::styled(fmt_wpm, Style::default().fg(Color::LightMagenta));
+
+    let paragraph = Paragraph::new(wpm_span)
+        .block(popup_block)
+        .alignment(ratatui::layout::Alignment::Center);
 
     let area = centered_rect(60, 25, frame.area());
-    frame.render_widget(wpm_span, area);
+    frame.render_widget(paragraph, area);
     Ok(())
 }
 
@@ -188,14 +194,17 @@ pub fn ui(f: &mut Frame, app: &TypeTui) -> crate::app::AppResult<()> {
         .direction(Direction::Vertical)
         .constraints(vec![
             Constraint::Percentage(10),
-            Constraint::Percentage(70),
-            Constraint::Percentage(20),
+            Constraint::Percentage(90),
+            Constraint::Percentage(10),
         ])
         .split(f.area());
     render_title(f, chunks[0])?;
     match app.current_screen {
         Screen::Main { selected_option } => {
             render_menu(f, chunks[1], selected_option)?;
+        }
+        Screen::TestOpts => {
+            let _ = render_test_opts(f, app);
         }
         Screen::Typing => {
             render_typing_test(f, chunks[1], &app.typing)?;
@@ -208,6 +217,42 @@ pub fn ui(f: &mut Frame, app: &TypeTui) -> crate::app::AppResult<()> {
         }
         _ => {}
     }
+    Ok(())
+}
+
+pub fn render_test_opts(frame: &mut ratatui::Frame, app: &TypeTui) -> AppResult<()> {
+    // Split the available area into two parts.
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(vec![Constraint::Percentage(50), Constraint::Percentage(50)])
+        .split(frame.area());
+
+    // Left block: "How many words"
+    let words_block = Block::default()
+        .title("How many words")
+        .borders(Borders::ALL);
+    // Render the input string inside the block.
+    let words_paragraph = Paragraph::new(app.test_opts.word_input.as_str())
+        .block(words_block)
+        .alignment(ratatui::layout::Alignment::Center);
+    frame.render_widget(words_paragraph, chunks[0]);
+
+    // Right block: "Seconds" options
+    let seconds_block = Block::default().title("Seconds").borders(Borders::ALL);
+    let seconds_options: Vec<ListItem> = app
+        .test_opts
+        .seconds_options
+        .iter()
+        .map(|sec| ListItem::new(format!("{} seconds", sec)))
+        .collect();
+    let seconds_list = List::new(seconds_options)
+        .block(seconds_block)
+        .highlight_style(Style::default().fg(Color::Yellow))
+        .highlight_symbol("-> ");
+    let mut list_state = ratatui::widgets::ListState::default();
+    list_state.select(Some(app.test_opts.seconds_selected));
+    frame.render_stateful_widget(seconds_list, chunks[1], &mut list_state);
+
     Ok(())
 }
 
