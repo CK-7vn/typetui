@@ -37,14 +37,28 @@ impl TypingTest {
             time_limit: None,
         }
     }
-
     pub fn handle_typing_input(key: KeyCode, app: &mut TypeTui) {
         let test = &mut app.typing;
-        let test_text: Vec<char> = test.test_text.chars().collect();
-        if test.user_input.is_empty() {
-            test.start_time = Some(Instant::now());
-        }
-        if test.user_input.len() != test.test_text.len() {
+        let test_chars: Vec<char> = test.test_text.chars().collect();
+
+        // Timed test branch: if time_limit is set.
+        if let Some(time_limit) = test.time_limit {
+            // Start timer on first input.
+            if test.start_time.is_none() {
+                test.start_time = Some(Instant::now());
+            }
+
+            // Check if time is up.
+            if let Some(start) = test.start_time {
+                if start.elapsed().as_secs() >= time_limit as u64 {
+                    test.time = Some(start.elapsed());
+                    test.calculate_wpm_acc();
+                    app.current_screen = Screen::Stats;
+                    return;
+                }
+            }
+
+            // Process key press.
             match key {
                 KeyCode::Char(c) => {
                     test.user_input.push(c);
@@ -54,17 +68,41 @@ impl TypingTest {
                 }
                 _ => {}
             }
+
+            // If the user has typed 75% (or more) of the current text,
+            // append additional words (for example, 10 words).
+            let typed_len = test.user_input.len();
+            let total_len = test.test_text.len();
+            if total_len > 0 && (typed_len as f64 / total_len as f64) >= 0.75 {
+                test.append_words(10);
+            }
         } else {
-            if let Some(start) = test.start_time {
-                test.time = Some(start.elapsed());
+            // Non-timed test branch: wait until the user finishes the test text.
+            if test.user_input.is_empty() {
+                test.start_time = Some(Instant::now());
             }
-            for (i, c) in test.user_input.chars().enumerate() {
-                if c == test_text[i] {
-                    test.correct_char += 1
+            if test.user_input.len() != test.test_text.len() {
+                match key {
+                    KeyCode::Char(c) => {
+                        test.user_input.push(c);
+                    }
+                    KeyCode::Backspace => {
+                        test.user_input.pop();
+                    }
+                    _ => {}
                 }
+            } else {
+                if let Some(start) = test.start_time {
+                    test.time = Some(start.elapsed());
+                }
+                for (i, c) in test.user_input.chars().enumerate() {
+                    if c == test_chars[i] {
+                        test.correct_char += 1;
+                    }
+                }
+                test.calculate_wpm_acc();
+                app.current_screen = Screen::Stats;
             }
-            test.calculate_wpm_acc();
-            app.current_screen = Screen::Stats;
         }
     }
 
@@ -93,6 +131,22 @@ impl TypingTest {
             .cloned()
             .collect();
         self.test_text = chosen.join(" ");
+    }
+    pub fn append_words(&mut self, num_words: usize) {
+        let contents = fs::read_to_string("./20k.txt").expect("can't get words from file");
+        let words: Vec<&str> = contents
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .collect();
+        let mut rng = rand::rng();
+        let chosen: Vec<&str> = words
+            .choose_multiple(&mut rng, num_words.min(words.len()))
+            .cloned()
+            .collect();
+        if !self.test_text.is_empty() {
+            self.test_text.push(' ');
+        }
+        self.test_text.push_str(&chosen.join(" "));
     }
 }
 

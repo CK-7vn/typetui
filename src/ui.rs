@@ -15,7 +15,7 @@ use ratatui::{
 };
 
 use crate::{
-    app::{AppResult, Screen, TypeTui},
+    app::{AppResult, Screen, TestOptsFocus, TypeTui},
     event::AppEventHandler,
     typingtest::TypingTest,
 };
@@ -102,7 +102,8 @@ pub fn render_typing_test(frame: &mut Frame, chunk: Rect, typing: &TypingTest) -
                 .borders(Borders::ALL)
                 .border_type(BorderType::QuadrantInside),
         )
-        .alignment(ratatui::layout::Alignment::Center);
+        .alignment(ratatui::layout::Alignment::Center)
+        .wrap(Wrap { trim: true });
 
     frame.render_widget(paragraph, chunk);
     Ok(())
@@ -221,24 +222,38 @@ pub fn ui(f: &mut Frame, app: &TypeTui) -> crate::app::AppResult<()> {
 }
 
 pub fn render_test_opts(frame: &mut ratatui::Frame, app: &TypeTui) -> AppResult<()> {
-    // Split the available area into two parts.
+    let popup_area = centered_rect(60, 50, frame.size());
+
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints(vec![Constraint::Percentage(50), Constraint::Percentage(50)])
-        .split(frame.area());
-
+        .split(popup_area);
+    let words_border_style = if let TestOptsFocus::Words = app.test_opts.focus {
+        Style::default().fg(Color::Yellow)
+    } else {
+        Style::default()
+    };
     // Left block: "How many words"
     let words_block = Block::default()
         .title("How many words")
-        .borders(Borders::ALL);
+        .borders(Borders::ALL)
+        .border_style(words_border_style);
     // Render the input string inside the block.
     let words_paragraph = Paragraph::new(app.test_opts.word_input.as_str())
         .block(words_block)
-        .alignment(ratatui::layout::Alignment::Center);
+        .alignment(ratatui::layout::Alignment::Center)
+        .wrap(Wrap { trim: true });
     frame.render_widget(words_paragraph, chunks[0]);
-
+    let seconds_border_style = if let TestOptsFocus::Seconds = app.test_opts.focus {
+        Style::default().fg(Color::Yellow)
+    } else {
+        Style::default()
+    };
     // Right block: "Seconds" options
-    let seconds_block = Block::default().title("Seconds").borders(Borders::ALL);
+    let seconds_block = Block::default()
+        .title("Seconds")
+        .borders(Borders::ALL)
+        .border_style(seconds_border_style);
     let seconds_options: Vec<ListItem> = app
         .test_opts
         .seconds_options

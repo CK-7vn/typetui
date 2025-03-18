@@ -1,6 +1,6 @@
 use std::io;
 
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::{typingtest::TypingTest, ui};
 
@@ -128,51 +128,9 @@ impl TypeTui {
                             crate::app::Screen::Main { .. } => {
                                 let _ = TypeTui::handle_menu_input(key_event.code, app);
                             }
-                            crate::app::Screen::TestOpts => match app.test_opts.focus {
-                                TestOptsFocus::Words => match key_event.code {
-                                    KeyCode::Char(c) => app.test_opts.word_input.push(c),
-                                    KeyCode::Backspace => {
-                                        app.test_opts.word_input.pop();
-                                    }
-                                    KeyCode::Enter => {
-                                        if let Ok(n) =
-                                            app.test_opts.word_input.trim().parse::<usize>()
-                                        {
-                                            app.load_random_words(n);
-                                            app.current_screen = Screen::Typing;
-                                        }
-                                    }
-                                    KeyCode::Tab => {
-                                        app.test_opts.focus = TestOptsFocus::Seconds;
-                                    }
-                                    _ => {}
-                                },
-                                TestOptsFocus::Seconds => match key_event.code {
-                                    KeyCode::Up => {
-                                        if app.test_opts.seconds_selected > 0 {
-                                            app.test_opts.seconds_selected -= 1;
-                                        }
-                                    }
-                                    KeyCode::Down => {
-                                        if app.test_opts.seconds_selected
-                                            < app.test_opts.seconds_options.len() - 1
-                                        {
-                                            app.test_opts.seconds_selected += 1;
-                                        }
-                                    }
-                                    KeyCode::Enter => {
-                                        let chosen_seconds = app.test_opts.seconds_options
-                                            [app.test_opts.seconds_selected];
-                                        app.load_random_words(50);
-                                        app.typing.time_limit = Some(chosen_seconds);
-                                        app.current_screen = Screen::Typing;
-                                    }
-                                    KeyCode::Tab => {
-                                        app.test_opts.focus = TestOptsFocus::Words;
-                                    }
-                                    _ => {}
-                                },
-                            },
+                            crate::app::Screen::TestOpts => {
+                                TypeTui::handle_test_ops(app, key_event);
+                            }
                             crate::app::Screen::Typing => {
                                 TypingTest::handle_typing_input(key_event.code, app);
                             }
@@ -201,7 +159,49 @@ impl TypeTui {
             }
         }
     }
-    pub fn handle_test_ops(key: KeyCode) {}
+    pub fn handle_test_ops(app: &mut TypeTui, key_event: KeyEvent) {
+        match app.test_opts.focus {
+            TestOptsFocus::Words => match key_event.code {
+                KeyCode::Char(c) => app.test_opts.word_input.push(c),
+                KeyCode::Backspace => {
+                    app.test_opts.word_input.pop();
+                }
+                KeyCode::Enter => {
+                    if let Ok(n) = app.test_opts.word_input.trim().parse::<usize>() {
+                        app.load_random_words(n);
+                        app.current_screen = Screen::Typing;
+                    }
+                }
+                KeyCode::Tab => {
+                    app.test_opts.focus = TestOptsFocus::Seconds;
+                }
+                _ => {}
+            },
+            TestOptsFocus::Seconds => match key_event.code {
+                KeyCode::Up => {
+                    if app.test_opts.seconds_selected > 0 {
+                        app.test_opts.seconds_selected -= 1;
+                    }
+                }
+                KeyCode::Down => {
+                    if app.test_opts.seconds_selected < app.test_opts.seconds_options.len() - 1 {
+                        app.test_opts.seconds_selected += 1;
+                    }
+                }
+                KeyCode::Enter => {
+                    let chosen_seconds =
+                        app.test_opts.seconds_options[app.test_opts.seconds_selected];
+                    app.load_random_words(50);
+                    app.typing.time_limit = Some(chosen_seconds);
+                    app.current_screen = Screen::Typing;
+                }
+                KeyCode::Tab => {
+                    app.test_opts.focus = TestOptsFocus::Words;
+                }
+                _ => {}
+            },
+        }
+    }
 
     //handle input takes the screen and then the app
     // mutable reference to the app to change state, and a keycode
