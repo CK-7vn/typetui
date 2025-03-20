@@ -222,7 +222,7 @@ pub fn ui(f: &mut Frame, app: &TypeTui) -> crate::app::AppResult<()> {
 }
 
 pub fn render_test_opts(frame: &mut ratatui::Frame, app: &TypeTui) -> AppResult<()> {
-    let popup_area = centered_rect(60, 50, frame.size());
+    let popup_area = centered_rect(60, 50, frame.area());
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -233,23 +233,27 @@ pub fn render_test_opts(frame: &mut ratatui::Frame, app: &TypeTui) -> AppResult<
     } else {
         Style::default()
     };
-    // Left block: "How many words"
+    // top block: "How many words"
     let words_block = Block::default()
         .title("How many words")
         .borders(Borders::ALL)
         .border_style(words_border_style);
-    // Render the input string inside the block.
+
+    // render the input string inside the block.
     let words_paragraph = Paragraph::new(app.test_opts.word_input.as_str())
         .block(words_block)
         .alignment(ratatui::layout::Alignment::Center)
         .wrap(Wrap { trim: true });
     frame.render_widget(words_paragraph, chunks[0]);
+
+    //conditional rendering here based on whatt he user has selected
     let seconds_border_style = if let TestOptsFocus::Seconds = app.test_opts.focus {
         Style::default().fg(Color::Yellow)
     } else {
         Style::default()
     };
-    // Right block: "Seconds" options
+
+    // bottom block: "Seconds" options
     let seconds_block = Block::default()
         .title("Seconds")
         .borders(Borders::ALL)
@@ -260,10 +264,12 @@ pub fn render_test_opts(frame: &mut ratatui::Frame, app: &TypeTui) -> AppResult<
         .iter()
         .map(|sec| ListItem::new(format!("{} seconds", sec)))
         .collect();
+
     let seconds_list = List::new(seconds_options)
         .block(seconds_block)
         .highlight_style(Style::default().fg(Color::Yellow))
         .highlight_symbol("-> ");
+
     let mut list_state = ratatui::widgets::ListState::default();
     list_state.select(Some(app.test_opts.seconds_selected));
     frame.render_stateful_widget(seconds_list, chunks[1], &mut list_state);

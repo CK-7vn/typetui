@@ -1,4 +1,3 @@
-use core::time;
 use std::{
     fs,
     time::{Duration, Instant},
@@ -143,6 +142,7 @@ impl TypingTest {
             .choose_multiple(&mut rng, num_words.min(words.len()))
             .cloned()
             .collect();
+
         if !self.test_text.is_empty() {
             self.test_text.push(' ');
         }

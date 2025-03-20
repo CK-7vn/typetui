@@ -16,7 +16,8 @@ pub struct AppEventHandler {
     receiver: tokio::sync::mpsc::Receiver<AppEvent>,
     handler: tokio::task::JoinHandle<()>,
 }
-
+//same calculation start at i32 min, and every iteration if its greater than the last one every
+//tick.
 #[allow(dead_code)]
 impl AppEventHandler {
     pub fn new(tick_rate: u64) -> Self {
