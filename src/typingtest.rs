@@ -149,7 +149,7 @@ impl TypingTest {
         self.test_text.push_str(&chosen.join(" "));
     }
 }
-
+//counting chars helper function
 pub fn count_chars(input: &str) -> usize {
     input
         .chars()
