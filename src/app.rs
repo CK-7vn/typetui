@@ -54,12 +54,7 @@ impl TestOpts {
         }
     }
 }
-//current screen event handler for each screen, input mode, normal, or enter click ready
-//switch the user input mode and iunput handler checking if its enter then when they type push the
-//characters into the input buffer
-//start the tui, render the ui, access users input
-//index of cursor x if thats the typing test than handle_typetest_input
-//do everything on the app...don't make it more difficult than it has to be
+
 #[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct TypeTui {

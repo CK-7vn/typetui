@@ -53,7 +53,6 @@ impl TypingTest {
                     test.time = Some(start.elapsed());
                     test.calculate_wpm_acc();
                     app.current_screen = Screen::Stats;
-                    return;
                 }
             }
 
@@ -109,11 +108,13 @@ impl TypingTest {
         if let Some(time) = self.time {
             let secs = time.as_secs() as f64;
             let minutes = secs / 60.0;
-            if minutes > 0.0 {
+            if secs > 0.0 {
                 // calculate WPM as (correct characters / 5) divided by elapsed minutes
                 // this is monkeytypes way of calculating wpm
+                println!("printing wpm");
                 self.wpm = ((self.correct_char as f64) / 5.0 / minutes).round() as i32;
             } else {
+                println!("secs was not greater than 0.0");
                 self.wpm = 0;
             }
         }
