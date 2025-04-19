@@ -51,11 +51,15 @@ impl TypingTest {
             if let Some(start) = test.start_time {
                 if start.elapsed().as_secs() >= time_limit as u64 {
                     test.time = Some(start.elapsed());
+                    for (i, c) in test.user_input.chars().enumerate() {
+                        if c == test_chars[i] {
+                            test.correct_char += 1;
+                        }
+                    }
                     test.calculate_wpm_acc();
                     app.current_screen = Screen::Stats;
                 }
             }
-
             // Process key press.
             match key {
                 KeyCode::Char(c) => {
@@ -79,7 +83,7 @@ impl TypingTest {
             if test.user_input.is_empty() {
                 test.start_time = Some(Instant::now());
             }
-            if test.user_input.len() != test.test_text.len() {
+            if test.user_input.len() < test.test_text.len() {
                 match key {
                     KeyCode::Char(c) => {
                         test.user_input.push(c);
@@ -99,7 +103,13 @@ impl TypingTest {
                     }
                 }
                 test.calculate_wpm_acc();
-                app.current_screen = Screen::Stats;
+                if app.user.is_empty() {
+                    app.current_screen = Screen::Login;
+                } else {
+                    app.db.add_test(app.user.clone(), test.wpm);
+                    app.current_screen = Screen::Stats;
+                    app.history = app.db.get_all_tests().unwrap();
+                }
             }
         }
     }
@@ -111,14 +121,13 @@ impl TypingTest {
             if secs > 0.0 {
                 // calculate WPM as (correct characters / 5) divided by elapsed minutes
                 // this is monkeytypes way of calculating wpm
-                println!("printing wpm");
                 self.wpm = ((self.correct_char as f64) / 5.0 / minutes).round() as i32;
             } else {
-                println!("secs was not greater than 0.0");
                 self.wpm = 0;
             }
         }
     }
+
     pub fn get_words(&mut self, num_words: usize) {
         let contents = fs::read_to_string("./20k.txt").expect("can't get words from file");
         let words: Vec<&str> = contents

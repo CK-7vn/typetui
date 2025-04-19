@@ -6,7 +6,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use ratatui::{
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
     prelude::CrosstermBackend,
     style::{Color, Style},
     text::{Line, Span, Text},
@@ -110,7 +110,7 @@ pub fn render_typing_test(frame: &mut Frame, chunk: Rect, typing: &TypingTest) -
 }
 
 pub fn render_menu(frame: &mut Frame, chunk: Rect, selected_option: usize) -> AppResult<()> {
-    let options = ["Test", "Login", "Stats", "Quit", "TestOpts"];
+    let options = ["Test", "Login", "History", "Quit", "TestOpts"];
 
     let items: Vec<ListItem> = options.iter().map(|&s| ListItem::new(s)).collect();
 
@@ -123,9 +123,35 @@ pub fn render_menu(frame: &mut Frame, chunk: Rect, selected_option: usize) -> Ap
         .block(popup_block)
         .highlight_style(Style::default().fg(Color::Yellow))
         .highlight_symbol("-> ");
+
     let mut list_state = ListState::default();
     list_state.select(Some(selected_option));
     frame.render_stateful_widget(list, chunk, &mut list_state);
+    Ok(())
+}
+
+pub fn render_history(
+    frame: &mut Frame,
+    area: Rect,
+    history: &[(String, i32)],
+    state: &mut ListState,
+) -> AppResult<()> {
+    let items: Vec<ListItem> = history
+        .iter()
+        .map(|(uname, wpm)| ListItem::new(format!("{:>3} WPM — {}", wpm, uname)))
+        .collect();
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title("History")
+        .title_alignment(ratatui::layout::Alignment::Center);
+
+    let list = List::new(items)
+        .block(block)
+        .highlight_symbol(">> ")
+        .highlight_style(Style::default().fg(Color::Yellow));
+
+    frame.render_stateful_widget(list, area, state);
     Ok(())
 }
 
@@ -190,7 +216,7 @@ pub fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         .split(popup_layout[1])[1]
 }
 
-pub fn ui(f: &mut Frame, app: &TypeTui) -> crate::app::AppResult<()> {
+pub fn ui(f: &mut Frame, app: &mut TypeTui) -> crate::app::AppResult<()> {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints(vec![
@@ -213,11 +239,42 @@ pub fn ui(f: &mut Frame, app: &TypeTui) -> crate::app::AppResult<()> {
         Screen::Quit => {
             render_quit(f)?;
         }
+        Screen::History => {
+            let area = centered_rect(50, 20, f.area());
+            let _ = render_history(f, area, &app.history, &mut app.stats_list_state);
+        }
         Screen::Stats => {
             render_stats(f, &app.typing)?;
         }
-        _ => {}
+        Screen::Login => {
+            let area = centered_rect(50, 20, f.area());
+            render_login(f, area, &app.login_input)?;
+        }
     }
+    Ok(())
+}
+pub fn render_login(frame: &mut Frame, area: Rect, user_input: &str) -> AppResult<()> {
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title("Login")
+        .title_alignment(Alignment::Center);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(vec![Constraint::Length(1), Constraint::Length(1)])
+        .margin(1)
+        .split(area);
+
+    let prompt = Paragraph::new(Text::raw("Enter your username")).alignment(Alignment::Left);
+
+    frame.render_widget(block.clone(), area);
+
+    let user_line = Paragraph::new(user_input)
+        .style(Style::default().fg(Color::Green))
+        .alignment(Alignment::Center);
+    frame.render_widget(prompt, chunks[0]);
+    frame.render_widget(user_line, chunks[1]);
+
     Ok(())
 }
 
