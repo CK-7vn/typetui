@@ -133,18 +133,25 @@ pub fn render_menu(frame: &mut Frame, chunk: Rect, selected_option: usize) -> Ap
 pub fn render_history(
     frame: &mut Frame,
     area: Rect,
-    history: &[(String, i32)],
+    history: &[(String, i32, i32, i32)],
     state: &mut ListState,
 ) -> AppResult<()> {
     let items: Vec<ListItem> = history
         .iter()
-        .map(|(uname, wpm)| ListItem::new(format!("{:>3} WPM — {}", wpm, uname)))
+        .map(|(uname, wpm, word_count, time)| {
+            let label = if *time > 0 {
+                format!("{}s — {} WPM — {}", time, wpm, uname)
+            } else {
+                format!("{} words — {} WPM — {}", word_count, wpm, uname)
+            };
+            ListItem::new(label)
+        })
         .collect();
 
     let block = Block::default()
         .borders(Borders::ALL)
         .title("History")
-        .title_alignment(ratatui::layout::Alignment::Center);
+        .title_alignment(Alignment::Center);
 
     let list = List::new(items)
         .block(block)
@@ -225,10 +232,20 @@ pub fn ui(f: &mut Frame, app: &mut TypeTui) -> crate::app::AppResult<()> {
             Constraint::Percentage(10),
         ])
         .split(f.area());
-    render_title(f, chunks[0])?;
+    match app.current_screen {
+        Screen::Main { selected_option: _ } => {}
+        _ => {
+            render_title(f, chunks[0])?;
+        }
+    }
     match app.current_screen {
         Screen::Main { selected_option } => {
-            render_menu(f, chunks[1], selected_option)?;
+            let main_panes = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
+                .split(chunks[1]);
+            render_splash(f, main_panes[0]);
+            render_menu(f, main_panes[1], selected_option)?;
         }
         Screen::TestOpts => {
             let _ = render_test_opts(f, app);
@@ -250,9 +267,86 @@ pub fn ui(f: &mut Frame, app: &mut TypeTui) -> crate::app::AppResult<()> {
             let area = centered_rect(50, 20, f.area());
             render_login(f, area, &app.login_input)?;
         }
+        Screen::Pause => {
+            render_pause_menu(f, chunks[1], app.pause_selected)?;
+        }
     }
+    match app.current_screen {
+        Screen::Typing => render_legend(f, chunks[2], "ESC to pause"),
+        Screen::TestOpts => render_legend(f, chunks[2], "ESC to return to Main Menu q to quit"),
+        Screen::Main { selected_option: _ } => render_legend(
+            f,
+            chunks[2],
+            " \u{2191}/\u{2193} to move  •  Enter to select",
+        ),
+        _ => render_legend(
+            f,
+            chunks[2],
+            "ESC to return to test * q to quit \u{2191}/\u{2193} to move  •  Enter to select ",
+        ),
+    };
     Ok(())
 }
+fn render_legend(frame: &mut Frame, area: Rect, text: &str) {
+    let p = Paragraph::new(text)
+        .style(Style::default().fg(Color::Gray))
+        .alignment(Alignment::Center);
+    frame.render_widget(p, area);
+}
+fn render_splash(frame: &mut Frame, area: Rect) {
+    //let lines = [
+    //    "▄▄▄█████▓▓██   ██▓ ██▓███  ▓█████ ▄▄▄█████▓ █    ██  ██▓",
+    //    "▓  ██▒ ▓▒ ▒██  ██▒▓██░  ██▒▓█   ▀ ▓  ██▒ ▓▒ ██  ▓██▒▓██▒",
+    //    "▒ ▓██░ ▒░  ▒██ ██░▓██░ ██▓▒▒███   ▒ ▓██░ ▒░▓██  ▒██░▒██▒",
+    //    "░ ▓██▓ ░   ░ ▐██▓░▒██▄█▓▒ ▒▒▓█  ▄ ░ ▓██▓ ░ ▓▓█  ░██░░██░",
+    //    "  ▒██▒ ░   ░ ██▒▓░▒██▒ ░  ░░▒████▒  ▒██▒ ░ ▒▒█████▓ ░██░",
+    //    "  ▒ ░░      ██▒▒▒ ▒▓▒░ ░  ░░░ ▒░ ░  ▒ ░░   ░▒▓▒ ▒ ▒ ░▓  ",
+    //    "    ░     ▓██ ░▒░ ░▒ ░      ░ ░  ░    ░    ░░▒░ ░ ░  ▒ ░",
+    //    "  ░       ▒ ▒ ░░  ░░          ░     ░       ░░░ ░ ░  ▒ ░",
+    //    "          ░ ░                 ░  ░            ░      ░  ",
+    //    "          ░ ░                                            ",
+    //];
+    let lines = [
+        "                                         ,ggggggggggggggg                  ",
+        "   I8                                   dP\"\"\"\"\"\"88\"\"\"\"\"\"\"                  ",
+        "   I8                                   Yb,_    88                         ",
+        "88888888                                 `\"\"    88                     gg  ",
+        "   I8                                           88                     \"\"  ",
+        "   I8    gg     gg  gg,gggg,     ,ggg,          88        gg      gg   gg  ",
+        "   I8    I8     8I  I8P\"  \"Yb   i8\" \"8i         88        I8      8I   88  ",
+        "  ,I8,   I8,   ,8I  I8'    ,8i  I8, ,8I   gg,   88        I8,    ,8I   88  ",
+        " ,d88b, ,d8b, ,d8I ,I8 _  ,d8'  `YbadP'    \"Yb,,8P       ,d8b,  ,d8b,_,88,_",
+        " 8P\"\"Y8 P\"\"Y88P\"888PI8 YY88888P888P\"Y888     \"Y8P'       8P'\"Y88P\"`Y88P\"\"Y8",
+        "              ,d8I' I8                                                     ",
+        "            ,dP'8I  I8                                                     ",
+        "           ,8\"  8I  I8                                                     ",
+        "           I8   8I  I8                                                     ",
+        "           `8, ,8I  I8                                                     ",
+        "            `Y8P\"   I8                                                     ",
+    ];
+    let splash = lines.join("\n");
+    let p = Paragraph::new(Text::raw(splash))
+        .style(Style::default().fg(Color::Blue))
+        .alignment(Alignment::Center);
+    frame.render_widget(p, area);
+}
+pub fn render_pause_menu(frame: &mut Frame, area: Rect, selected: usize) -> AppResult<()> {
+    let options = ["Restart Test", "New Test", "Main Menu", "Quit"];
+    let items: Vec<ListItem> = options.iter().map(|&s| ListItem::new(s)).collect();
+    let block = Block::default()
+        .title("Paused")
+        .borders(Borders::ALL)
+        .title_alignment(Alignment::Center);
+    let list = List::new(items)
+        .block(block)
+        .highlight_symbol("» ")
+        .highlight_style(Style::default().fg(Color::LightBlue));
+    let mut state = ListState::default();
+    state.select(Some(selected));
+    frame.render_stateful_widget(list, area, &mut state);
+    Ok(())
+}
+
 pub fn render_login(frame: &mut Frame, area: Rect, user_input: &str) -> AppResult<()> {
     let block = Block::default()
         .borders(Borders::ALL)

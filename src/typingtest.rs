@@ -13,6 +13,7 @@ pub struct TypingTest {
     pub test_text: String,
     pub user_input: String,
     pub correct_char: i32,
+    pub word_count: i32,
     pub wpm: i32,
     pub time: Option<Duration>,
     pub start_time: Option<Instant>,
@@ -32,6 +33,7 @@ impl TypingTest {
             correct_char: 0,
             wpm: 0,
             time: None,
+            word_count: 0,
             start_time: None,
             time_limit: None,
         }
@@ -57,6 +59,16 @@ impl TypingTest {
                         }
                     }
                     test.calculate_wpm_acc();
+                    let mut test_time: u16 = 0;
+                    if let Some(time_maybe) = test.time_limit {
+                        test_time = time_maybe;
+                    }
+                    app.db.add_test(
+                        app.user.clone(),
+                        test.wpm,
+                        test.word_count,
+                        test_time.into(),
+                    );
                     app.current_screen = Screen::Stats;
                 }
             }
@@ -68,6 +80,7 @@ impl TypingTest {
                 KeyCode::Backspace => {
                     test.user_input.pop();
                 }
+                KeyCode::Esc => app.current_screen = Screen::Pause,
                 _ => {}
             }
 
@@ -91,6 +104,7 @@ impl TypingTest {
                     KeyCode::Backspace => {
                         test.user_input.pop();
                     }
+                    KeyCode::Esc => app.current_screen = Screen::Pause,
                     _ => {}
                 }
             } else {
@@ -103,10 +117,24 @@ impl TypingTest {
                     }
                 }
                 test.calculate_wpm_acc();
+                let mut test_time: u16 = 0;
+                if let Some(time_maybe) = test.time_limit {
+                    test_time = time_maybe;
+                }
+
                 if app.user.is_empty() {
                     app.current_screen = Screen::Login;
                 } else {
-                    app.db.add_test(app.user.clone(), test.wpm);
+                    let text_length = test.test_text.len() as i32;
+                    test.word_count = text_length / 5;
+                    app.db.add_test(
+                        app.user.clone(),
+                        test.wpm,
+                        test.word_count,
+                        test_time.into(),
+                    );
+                    test.test_text = "".to_string();
+                    test.user_input = "".to_string();
                     app.current_screen = Screen::Stats;
                     app.history = app.db.get_all_tests().unwrap();
                 }

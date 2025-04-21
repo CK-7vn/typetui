@@ -1,5 +1,4 @@
-use std::io;
-
+use crate::io;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::widgets::ListState;
 
@@ -20,6 +19,7 @@ pub enum Screen {
     Stats,
     History,
     Quit,
+    Pause,
 }
 
 #[allow(dead_code)]
@@ -74,7 +74,8 @@ pub struct TypeTui {
     pub user: String,
     pub login_input: String,
     pub stats_list_state: ratatui::widgets::ListState,
-    pub history: Vec<(String, i32)>,
+    pub history: Vec<(String, i32, i32, i32)>,
+    pub pause_selected: usize,
 }
 
 impl Default for TypeTui {
@@ -99,20 +100,9 @@ impl TypeTui {
             login_input: String::new(),
             stats_list_state: state,
             history: Vec::new(),
+            pause_selected: 0,
         }
     }
-    //depend on position of cursor, and input mode being input or normal,
-    //screen, input mode,
-    pub fn handle_input(&mut self) {}
-
-    //set screen reset the cursor
-    pub fn handle_change_screen(&mut self) {}
-
-    //move cursor up
-
-    // move cusor down
-    pub fn handle_stats(&mut self) {}
-
     pub fn load_random_words(&mut self, num_words: usize) {
         self.typing.get_words(num_words);
     }
@@ -160,16 +150,23 @@ impl TypeTui {
                                     let new = if i + 1 >= len { 0 } else { i + 1 };
                                     app.stats_list_state.select(Some(new));
                                 }
+                                KeyCode::Esc => {
+                                    app.current_screen = Screen::Main { selected_option: 0 }
+                                }
                                 KeyCode::Char('q') => {
                                     return Ok(false);
                                 }
                                 _ => {}
                             },
-                            crate::app::Screen::Stats => {
-                                if let KeyCode::Char('q') = key_event.code {
+                            crate::app::Screen::Stats => match key_event.code {
+                                KeyCode::Char('q') => {
                                     return Ok(false);
                                 }
-                            }
+                                KeyCode::Esc => {
+                                    app.current_screen = Screen::Main { selected_option: 0 }
+                                }
+                                _ => {}
+                            },
                             crate::app::Screen::Quit => {
                                 if key_event.code == KeyCode::Char('y') {
                                     return Ok(false);
@@ -193,6 +190,41 @@ impl TypeTui {
                                 }
                                 _ => {}
                             },
+                            Screen::Pause => match key_event.code {
+                                KeyCode::Up => {
+                                    if app.pause_selected == 0 {
+                                        app.pause_selected = 3;
+                                    } else {
+                                        app.pause_selected -= 1;
+                                    }
+                                }
+                                KeyCode::Down => {
+                                    app.pause_selected = (app.pause_selected + 1) % 4;
+                                }
+                                KeyCode::Enter => match app.pause_selected {
+                                    0 => {
+                                        app.typing.user_input = "".to_string();
+                                        app.typing.time = None;
+                                        app.typing.start_time = None;
+                                        app.current_screen = Screen::Typing;
+                                    }
+                                    1 => {
+                                        app.current_screen = Screen::TestOpts;
+                                    }
+                                    2 => {
+                                        app.current_screen = Screen::Main { selected_option: 0 };
+                                    }
+                                    3 => {
+                                        return Ok(false);
+                                    } // quit
+                                    _ => {}
+                                },
+                                KeyCode::Esc => {
+                                    // resume
+                                    app.current_screen = Screen::Typing;
+                                }
+                                _ => {}
+                            },
                         }
                     }
                     crate::event::AppEvent::Tick => {}
@@ -204,6 +236,13 @@ impl TypeTui {
             }
         }
     }
+    pub fn reset_test(&mut self) {
+        self.typing.user_input.clear();
+        self.typing.correct_char = 0;
+        self.typing.wpm = 0;
+        self.typing.start_time = None;
+        self.typing.time = None;
+    }
     pub fn confirm_login(&mut self) {
         let uname = self.login_input.trim().to_string();
         if uname.is_empty() {
@@ -211,14 +250,32 @@ impl TypeTui {
         }
         self.user = uname.to_string();
         self.login_input.clear();
-        let wpm = self.typing.wpm;
-        self.db.add_test(uname.to_string(), wpm);
-        self.history = Result::expect(self.db.get_all_tests(), "error getting all tests");
-        self.current_screen = Screen::Stats;
+        if self.typing.wpm != 0 {
+            let wpm = self.typing.wpm;
+            let test_time = self.typing.time_limit.unwrap_or(0) as i32;
+            let word_count = if self.typing.time_limit.is_some() {
+                (self.typing.user_input.len() as i32) / 5
+            } else {
+                (self.typing.test_text.len() as i32) / 5
+            };
+            self.typing.word_count = word_count;
+            self.db.add_test(uname.clone(), wpm, word_count, test_time);
+            self.history = self.db.get_all_tests().expect("error getting all tests");
+            self.reset_test();
+            self.current_screen = Screen::Stats;
+        } else {
+            self.current_screen = Screen::Main { selected_option: 0 }
+        }
     }
     pub fn handle_test_ops(app: &mut TypeTui, key_event: KeyEvent) {
         match app.test_opts.focus {
             TestOptsFocus::Words => match key_event.code {
+                KeyCode::Char('q') | KeyCode::Char('Q') => {
+                    app.current_screen = Screen::Quit;
+                }
+                KeyCode::Esc => {
+                    app.current_screen = Screen::Main { selected_option: 0 };
+                }
                 KeyCode::Char(c) => app.test_opts.word_input.push(c),
                 KeyCode::Backspace => {
                     app.test_opts.word_input.pop();
@@ -255,6 +312,8 @@ impl TypeTui {
                 KeyCode::Tab => {
                     app.test_opts.focus = TestOptsFocus::Words;
                 }
+                KeyCode::Esc => app.current_screen = Screen::Main { selected_option: 0 },
+                KeyCode::Char('q') | KeyCode::Char('Q') => app.current_screen = Screen::Quit,
                 _ => {}
             },
         }
@@ -299,7 +358,12 @@ impl TypeTui {
                 //when the user presses enter we'll check the selected options value and
                 //then switch menu's based on that
                 KeyCode::Enter => match *selected_option {
-                    0 => app.current_screen = Screen::Typing,
+                    0 => {
+                        app.reset_test();
+                        const DEFAULT_WORD_COUNT: usize = 50;
+                        app.typing.get_words(DEFAULT_WORD_COUNT);
+                        app.current_screen = Screen::Typing
+                    }
                     1 => app.current_screen = Screen::Login,
                     2 => {
                         app.refresh_history();

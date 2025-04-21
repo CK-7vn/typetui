@@ -25,26 +25,36 @@ impl DB {
         );
 
         let _ = db.conn.execute(
-            "CREATE TABLE if not exists  tests (
+            "CREATE TABLE if not exists tests (
         id integer primary key,
         username text not null ,
-        wpm integer not null )",
+        wpm integer not null ,
+        word_count integer not null,
+        time integer not null)",
             [],
         );
         Ok(db)
     }
-    pub fn add_test(&mut self, username: String, wpm: i32) {
+    pub fn add_test(&mut self, username: String, wpm: i32, word_count: i32, time: i32) {
         let _ = self.conn.execute(
-            "INSERT INTO tests (username, wpm) values (?1, ?2)",
-            params![username, wpm],
+            "INSERT INTO tests (username, wpm, word_count, time) values (?1, ?2, ?3, ?4)",
+            params![username, wpm, word_count, time],
         );
     }
-
-    pub fn get_all_tests(&self) -> Result<Vec<(String, i32)>> {
-        let mut stmt = self
-            .conn
-            .prepare("SELECT username, wpm FROM tests ORDER BY wpm DESC")?;
-        let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
+    pub fn get_all_tests(&self) -> Result<Vec<(String, i32, i32, i32)>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT username, wpm, word_count, time
+           FROM tests
+          ORDER BY wpm DESC", // or ORDER BY wpm DESC, whatever your sort is
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, i32>(1)?,
+                row.get::<_, i32>(2)?,
+                row.get::<_, i32>(3)?,
+            ))
+        })?;
         let mut results = Vec::new();
         for r in rows {
             results.push(r?);
