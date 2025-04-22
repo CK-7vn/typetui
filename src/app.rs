@@ -1,6 +1,6 @@
 use crate::io;
 use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::widgets::ListState;
+use ratatui::widgets::TableState;
 
 use crate::{
     db::{self, DB},
@@ -73,7 +73,7 @@ pub struct TypeTui {
     pub db: db::DB,
     pub user: String,
     pub login_input: String,
-    pub stats_list_state: ratatui::widgets::ListState,
+    pub stats_list_state: ratatui::widgets::TableState,
     pub history: Vec<(String, i32, i32, i32)>,
     pub pause_selected: usize,
 }
@@ -86,7 +86,7 @@ impl Default for TypeTui {
 
 impl TypeTui {
     pub fn new() -> TypeTui {
-        let mut state = ListState::default();
+        let mut state = TableState::default();
         state.select(Some(0));
         TypeTui {
             current_screen: Screen::Main { selected_option: 0 },
@@ -242,7 +242,11 @@ impl TypeTui {
         self.typing.wpm = 0;
         self.typing.start_time = None;
         self.typing.time = None;
+        self.typing.time_limit = None;
+        self.typing.word_count = 0;
+        self.typing.test_text.clear();
     }
+
     pub fn confirm_login(&mut self) {
         let uname = self.login_input.trim().to_string();
         if uname.is_empty() {
@@ -261,7 +265,6 @@ impl TypeTui {
             self.typing.word_count = word_count;
             self.db.add_test(uname.clone(), wpm, word_count, test_time);
             self.history = self.db.get_all_tests().expect("error getting all tests");
-            self.reset_test();
             self.current_screen = Screen::Stats;
         } else {
             self.current_screen = Screen::Main { selected_option: 0 }
@@ -281,6 +284,7 @@ impl TypeTui {
                     app.test_opts.word_input.pop();
                 }
                 KeyCode::Enter => {
+                    app.reset_test();
                     if let Ok(n) = app.test_opts.word_input.trim().parse::<usize>() {
                         app.load_random_words(n);
                         app.current_screen = Screen::Typing;
@@ -303,6 +307,7 @@ impl TypeTui {
                     }
                 }
                 KeyCode::Enter => {
+                    app.reset_test();
                     let chosen_seconds =
                         app.test_opts.seconds_options[app.test_opts.seconds_selected];
                     app.load_random_words(50);
@@ -362,6 +367,7 @@ impl TypeTui {
                         app.reset_test();
                         const DEFAULT_WORD_COUNT: usize = 50;
                         app.typing.get_words(DEFAULT_WORD_COUNT);
+                        app.typing.time_limit = Some(15);
                         app.current_screen = Screen::Typing
                     }
                     1 => app.current_screen = Screen::Login,
@@ -374,6 +380,7 @@ impl TypeTui {
                         return Some(Ok(false));
                     }
                     4 => {
+                        app.reset_test();
                         app.current_screen = Screen::TestOpts;
                     }
                     _ => {}

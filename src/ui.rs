@@ -10,7 +10,10 @@ use ratatui::{
     prelude::CrosstermBackend,
     style::{Color, Style},
     text::{Line, Span, Text},
-    widgets::{Block, BorderType, Borders, List, ListItem, ListState, Paragraph, Wrap},
+    widgets::{
+        Block, BorderType, Borders, Cell, List, ListItem, ListState, Paragraph, Row, Table,
+        TableState, Wrap,
+    },
     Frame, Terminal,
 };
 
@@ -110,7 +113,7 @@ pub fn render_typing_test(frame: &mut Frame, chunk: Rect, typing: &TypingTest) -
 }
 
 pub fn render_menu(frame: &mut Frame, chunk: Rect, selected_option: usize) -> AppResult<()> {
-    let options = ["Test", "Login", "History", "Quit", "TestOpts"];
+    let options = ["Quick Test", "Login", "Test History", "Quit", "TestOpts"];
 
     let items: Vec<ListItem> = options.iter().map(|&s| ListItem::new(s)).collect();
 
@@ -134,34 +137,48 @@ pub fn render_history(
     frame: &mut Frame,
     area: Rect,
     history: &[(String, i32, i32, i32)],
-    state: &mut ListState,
+    state: &mut TableState,
 ) -> AppResult<()> {
-    let items: Vec<ListItem> = history
-        .iter()
-        .map(|(uname, wpm, word_count, time)| {
-            let label = if *time > 0 {
-                format!("{}s — {} WPM — {}", time, wpm, uname)
-            } else {
-                format!("{} words — {} WPM — {}", word_count, wpm, uname)
-            };
-            ListItem::new(label)
-        })
-        .collect();
+    let header = Row::new(vec![
+        Cell::from("Time/Words").style(Style::default().fg(Color::Blue)),
+        Cell::from("WPM").style(Style::default().fg(Color::LightBlue)),
+        Cell::from("User").style(Style::default().fg(Color::Blue)),
+    ])
+    .bottom_margin(1);
 
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title("History")
-        .title_alignment(Alignment::Center);
+    let widths = &[
+        Constraint::Percentage(33),
+        Constraint::Percentage(33),
+        Constraint::Percentage(33),
+    ];
 
-    let list = List::new(items)
-        .block(block)
-        .highlight_symbol(">> ")
-        .highlight_style(Style::default().fg(Color::Yellow));
+    let rows = history.iter().map(|(user, wpm, word_count, time)| {
+        let first_col = if *time > 0 {
+            format!("{}s", time)
+        } else {
+            format!("{}w", word_count)
+        };
+        Row::new(vec![
+            Cell::from(first_col),
+            Cell::from(wpm.to_string()),
+            Cell::from(user.clone()),
+        ])
+    });
 
-    frame.render_stateful_widget(list, area, state);
+    let table = Table::new(rows, widths)
+        .header(header)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("History")
+                .title_alignment(ratatui::layout::Alignment::Center),
+        )
+        .column_spacing(2)
+        .row_highlight_style(Style::default().fg(Color::LightBlue));
+
+    frame.render_stateful_widget(table, area, state);
     Ok(())
 }
-
 pub fn render_stats(frame: &mut Frame, test: &TypingTest) -> AppResult<()> {
     let wpm = test.wpm;
     let popup_block = Block::default()

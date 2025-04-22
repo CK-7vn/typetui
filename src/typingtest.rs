@@ -63,13 +63,18 @@ impl TypingTest {
                     if let Some(time_maybe) = test.time_limit {
                         test_time = time_maybe;
                     }
-                    app.db.add_test(
-                        app.user.clone(),
-                        test.wpm,
-                        test.word_count,
-                        test_time.into(),
-                    );
-                    app.current_screen = Screen::Stats;
+                    if app.user.is_empty() {
+                        app.current_screen = Screen::Login;
+                    } else {
+                        app.db.add_test(
+                            app.user.clone(),
+                            test.wpm,
+                            test.word_count,
+                            test_time.into(),
+                        );
+                        app.history = app.db.get_all_tests().unwrap_or_default();
+                        app.current_screen = Screen::Stats;
+                    }
                 }
             }
             // Process key press.
