@@ -8,7 +8,7 @@ use crossterm::{
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     prelude::CrosstermBackend,
-    style::{Color, Style},
+    style::{Color, Modifier, Style},
     text::{Line, Span, Text},
     widgets::{
         Block, BorderType, Borders, Cell, List, ListItem, ListState, Paragraph, Row, Table,
@@ -80,22 +80,23 @@ pub fn render_title(frame: &mut Frame, chunk: Rect) -> AppResult<()> {
 }
 
 pub fn render_typing_test(frame: &mut Frame, chunk: Rect, typing: &TypingTest) -> AppResult<()> {
-    let test_chars: Vec<char> = typing.test_text.chars().collect();
-    let input_chars: Vec<char> = typing.user_input.chars().collect();
+    let input_chars = typing.user_input.chars();
 
-    let spans: Vec<Span> = test_chars
-        .iter()
+    let spans: Vec<Span> = typing
+        .test_text
+        .chars()
+        .zip(input_chars.clone().map(Some).chain(std::iter::repeat(None)))
         .enumerate()
-        .map(|(i, &c)| {
-            if i < input_chars.len() {
-                if input_chars[i] == c {
-                    Span::styled(c.to_string(), Style::default().fg(Color::Green))
-                } else {
-                    Span::styled(c.to_string(), Style::default().fg(Color::Red))
-                }
-            } else {
-                Span::raw(c.to_string())
-            }
+        .map(|(i, (test_char, input_char))| {
+            let style = match input_char {
+                Some(c) if c == test_char => Style::default().fg(Color::Green),
+                Some(_) => Style::default().fg(Color::Red),
+                None if i == typing.user_input.len() => Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::REVERSED),
+                None => Style::default(),
+            };
+            Span::styled(test_char.to_string(), style)
         })
         .collect();
 
