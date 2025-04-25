@@ -2,8 +2,7 @@
 
 ![image](https://github.com/CK-7vn/typetui/blob/main/typetui.gif?raw=true)
 
-if
-typetui.tape
+
 ## Description
 This is a typing test TUI. I have used MonkeyType's WPM algorithm for calulcating the words per minute. 
 Users are able to do a quick test, which is a timed 15 second test, do a test with a specific number of words, or a timed test of 15s, 30s, 60s. 
