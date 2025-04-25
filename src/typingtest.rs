@@ -28,7 +28,7 @@ impl Default for TypingTest {
 impl TypingTest {
     pub fn new() -> TypingTest {
         TypingTest {
-            test_text: "Here is an example".to_string(),
+            test_text: "tuis are probably the coolest thing since sliced bread".to_string(),
             user_input: String::new(),
             correct_char: 0,
             wpm: 0,
