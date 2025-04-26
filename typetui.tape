@@ -62,34 +62,34 @@ Set Shell "fish"
 Set FontSize 32
 Set Width 2000
 Set Height 1400
-Sleep 3s
+Sleep 2
 Type "cargo run"
-Sleep 2s
+Sleep 2
 Enter
-Sleep 2s
+Sleep 2
 Enter
 Type@400ms "tuis are probably"
 Escape
-Sleep 2000ms
+Sleep 2
 Enter 
-Sleep 2000ms
-Type@400ms "tuis are probably the coolest thing since sliced bread "
+Sleep 2
+Type@200ms "tuis are probably the coolest thing since sliced bread "
 Type "TUI!"
-Sleep 2000ms
+Sleep 2
 Enter
-Sleep 2000ms
+Sleep 2
 Escape
 Down@500ms 2
 Enter
-Sleep 2000ms
+Sleep 2
 Down 
-Sleep 1200ms
+Sleep 2
 Escape
 Down@500ms 4 
-Sleep 2000ms
+Sleep 2
 Enter
-Sleep 2000ms
-Tab@500ms 
+Sleep 2
+Tab@1s 
 Down@500ms 3
 Escape
 Down@500ms 3

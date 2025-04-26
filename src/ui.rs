@@ -67,11 +67,12 @@ impl UI {
 pub fn render_title(frame: &mut Frame, chunk: Rect) -> AppResult<()> {
     let title_chunk = Block::default()
         .borders(Borders::ALL)
+        .border_style(Color::LightBlue)
         .style(Style::default());
 
     let title = Paragraph::new(Text::styled(
         "TypeTui",
-        Style::default().fg(Color::LightGreen),
+        Style::default().fg(Color::LightRed),
     ))
     .block(title_chunk)
     .alignment(ratatui::layout::Alignment::Center);
@@ -92,7 +93,7 @@ pub fn render_typing_test(frame: &mut Frame, chunk: Rect, typing: &TypingTest) -
                 Some(c) if c == test_char => Style::default().fg(Color::Green),
                 Some(_) => Style::default().fg(Color::Red),
                 None if i == typing.user_input.len() => Style::default()
-                    .fg(Color::Yellow)
+                    .fg(Color::LightBlue)
                     .add_modifier(Modifier::REVERSED),
                 None => Style::default(),
             };
@@ -104,6 +105,7 @@ pub fn render_typing_test(frame: &mut Frame, chunk: Rect, typing: &TypingTest) -
         .block(
             Block::default()
                 .borders(Borders::ALL)
+                .border_style(Color::LightBlue)
                 .border_type(BorderType::QuadrantInside),
         )
         .alignment(ratatui::layout::Alignment::Center)
@@ -120,12 +122,14 @@ pub fn render_menu(frame: &mut Frame, chunk: Rect, selected_option: usize) -> Ap
 
     let popup_block = Block::default()
         .borders(Borders::ALL)
+        .border_style(Color::LightBlue)
         .title("Main Menu")
+        .title_style(Color::LightBlue)
         .title_alignment(ratatui::layout::Alignment::Center);
 
     let list = List::new(items)
         .block(popup_block)
-        .highlight_style(Style::default().fg(Color::Yellow))
+        .highlight_style(Style::default().fg(Color::LightRed))
         .highlight_symbol("-> ");
 
     let mut list_state = ListState::default();
@@ -137,34 +141,42 @@ pub fn render_menu(frame: &mut Frame, chunk: Rect, selected_option: usize) -> Ap
 pub fn render_history(
     frame: &mut Frame,
     area: Rect,
-    history: &[(String, i32, i32, i32)],
+    history: &[(String, i32, i32, i32, i32, i32)],
     state: &mut TableState,
 ) -> AppResult<()> {
     let header = Row::new(vec![
         Cell::from("Time/Words").style(Style::default().fg(Color::Blue)),
+        Cell::from("Accuracy").style(Style::default().fg(Color::Blue)),
         Cell::from("WPM").style(Style::default().fg(Color::LightBlue)),
+        Cell::from("Raw WPM").style(Style::default().fg(Color::Blue)),
         Cell::from("User").style(Style::default().fg(Color::Blue)),
     ])
     .bottom_margin(1);
 
     let widths = &[
-        Constraint::Percentage(33),
-        Constraint::Percentage(33),
-        Constraint::Percentage(33),
+        Constraint::Percentage(20),
+        Constraint::Percentage(20),
+        Constraint::Percentage(20),
+        Constraint::Percentage(20),
+        Constraint::Percentage(20),
     ];
 
-    let rows = history.iter().map(|(user, wpm, word_count, time)| {
-        let first_col = if *time > 0 {
-            format!("{}s", time)
-        } else {
-            format!("{}w", word_count)
-        };
-        Row::new(vec![
-            Cell::from(first_col),
-            Cell::from(wpm.to_string()),
-            Cell::from(user.clone()),
-        ])
-    });
+    let rows = history
+        .iter()
+        .map(|(user, wpm, raw_wpm, accuracy, word_count, time)| {
+            let first_col = if *time > 0 {
+                format!("{}s", time)
+            } else {
+                format!("{}w", word_count)
+            };
+            Row::new(vec![
+                Cell::from(first_col),
+                Cell::from(accuracy.to_string() + &String::from("%")),
+                Cell::from(wpm.to_string()),
+                Cell::from(raw_wpm.to_string()),
+                Cell::from(user.clone()),
+            ])
+        });
 
     let table = Table::new(rows, widths)
         .header(header)
@@ -172,6 +184,7 @@ pub fn render_history(
             Block::default()
                 .borders(Borders::ALL)
                 .title("History")
+                .border_style(Style::default().bg(Color::Blue))
                 .title_alignment(ratatui::layout::Alignment::Center),
         )
         .column_spacing(2)
@@ -184,6 +197,7 @@ pub fn render_stats(frame: &mut Frame, test: &TypingTest) -> AppResult<()> {
     let wpm = test.wpm;
     let popup_block = Block::default()
         .borders(Borders::ALL)
+        .border_style(Color::LightBlue)
         .title("Stats")
         .title_alignment(ratatui::layout::Alignment::Center);
 
@@ -204,6 +218,7 @@ pub fn render_quit(frame: &mut Frame) -> AppResult<()> {
     let popup_block = Block::default()
         .title("y/n")
         .borders(Borders::ALL)
+        .border_style(Color::LightBlue)
         .style(Style::default().bg(Color::LightRed));
 
     let exit_text = Text::styled(
@@ -275,7 +290,7 @@ pub fn ui(f: &mut Frame, app: &mut TypeTui) -> crate::app::AppResult<()> {
             render_quit(f)?;
         }
         Screen::History => {
-            let area = centered_rect(50, 20, f.area());
+            let area = centered_rect(50, 50, f.area());
             let _ = render_history(f, area, &app.history, &mut app.stats_list_state);
         }
         Screen::Stats => {
@@ -307,7 +322,7 @@ pub fn ui(f: &mut Frame, app: &mut TypeTui) -> crate::app::AppResult<()> {
 }
 fn render_legend(frame: &mut Frame, area: Rect, text: &str) {
     let p = Paragraph::new(text)
-        .style(Style::default().fg(Color::Gray))
+        .style(Style::default().fg(Color::LightBlue))
         .alignment(Alignment::Center);
     frame.render_widget(p, area);
 }
@@ -354,11 +369,12 @@ pub fn render_pause_menu(frame: &mut Frame, area: Rect, selected: usize) -> AppR
     let block = Block::default()
         .title("Paused")
         .borders(Borders::ALL)
+        .border_style(Color::LightBlue)
         .title_alignment(Alignment::Center);
     let list = List::new(items)
         .block(block)
         .highlight_symbol("» ")
-        .highlight_style(Style::default().fg(Color::LightBlue));
+        .highlight_style(Style::default().fg(Color::LightRed));
     let mut state = ListState::default();
     state.select(Some(selected));
     frame.render_stateful_widget(list, area, &mut state);
@@ -368,6 +384,7 @@ pub fn render_pause_menu(frame: &mut Frame, area: Rect, selected: usize) -> AppR
 pub fn render_login(frame: &mut Frame, area: Rect, user_input: &str) -> AppResult<()> {
     let block = Block::default()
         .borders(Borders::ALL)
+        .border_style(Color::LightBlue)
         .title("Login")
         .title_alignment(Alignment::Center);
 
@@ -377,12 +394,14 @@ pub fn render_login(frame: &mut Frame, area: Rect, user_input: &str) -> AppResul
         .margin(1)
         .split(area);
 
-    let prompt = Paragraph::new(Text::raw("Enter your username")).alignment(Alignment::Left);
+    let prompt = Paragraph::new(Text::raw("Enter your username"))
+        .alignment(Alignment::Left)
+        .style(Color::Blue);
 
     frame.render_widget(block.clone(), area);
 
     let user_line = Paragraph::new(user_input)
-        .style(Style::default().fg(Color::Green))
+        .style(Style::default().fg(Color::LightRed))
         .alignment(Alignment::Center);
     frame.render_widget(prompt, chunks[0]);
     frame.render_widget(user_line, chunks[1]);
@@ -398,26 +417,28 @@ pub fn render_test_opts(frame: &mut ratatui::Frame, app: &TypeTui) -> AppResult<
         .constraints(vec![Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(popup_area);
     let words_border_style = if let TestOptsFocus::Words = app.test_opts.focus {
-        Style::default().fg(Color::Yellow)
+        Style::default().fg(Color::LightRed)
     } else {
-        Style::default()
+        Style::default().fg(Color::Blue)
     };
     // top block: "How many words"
     let words_block = Block::default()
         .title("How many words")
         .borders(Borders::ALL)
+        .border_style(Color::LightBlue)
         .border_style(words_border_style);
 
     // render the input string inside the block.
     let words_paragraph = Paragraph::new(app.test_opts.word_input.as_str())
         .block(words_block)
         .alignment(ratatui::layout::Alignment::Center)
+        .style(Color::LightBlue)
         .wrap(Wrap { trim: true });
     frame.render_widget(words_paragraph, chunks[0]);
 
     //conditional rendering here based on whatt he user has selected
     let seconds_border_style = if let TestOptsFocus::Seconds = app.test_opts.focus {
-        Style::default().fg(Color::Yellow)
+        Style::default().fg(Color::LightRed)
     } else {
         Style::default()
     };
@@ -436,7 +457,7 @@ pub fn render_test_opts(frame: &mut ratatui::Frame, app: &TypeTui) -> AppResult<
 
     let seconds_list = List::new(seconds_options)
         .block(seconds_block)
-        .highlight_style(Style::default().fg(Color::Yellow))
+        .highlight_style(Style::default().fg(Color::LightRed))
         .highlight_symbol("-> ");
 
     let mut list_state = ratatui::widgets::ListState::default();

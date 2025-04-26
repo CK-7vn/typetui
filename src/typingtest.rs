@@ -14,6 +14,8 @@ pub struct TypingTest {
     pub user_input: String,
     pub correct_char: i32,
     pub word_count: i32,
+    pub raw_wpm: i32,
+    pub accuracy: i32,
     pub wpm: i32,
     pub time: Option<Duration>,
     pub start_time: Option<Instant>,
@@ -32,6 +34,8 @@ impl TypingTest {
             user_input: String::new(),
             correct_char: 0,
             wpm: 0,
+            raw_wpm: 0,
+            accuracy: 0,
             time: None,
             word_count: 0,
             start_time: None,
@@ -41,122 +45,109 @@ impl TypingTest {
     pub fn handle_typing_input(key: KeyCode, app: &mut TypeTui) {
         let test = &mut app.typing;
         let test_chars: Vec<char> = test.test_text.chars().collect();
-
-        // Timed test branch: if time_limit is set.
-        if let Some(time_limit) = test.time_limit {
-            // Start timer on first input.
+        match key {
+            KeyCode::Char(c) => test.user_input.push(c),
+            KeyCode::Backspace => {
+                test.user_input.pop();
+            }
+            KeyCode::Esc => app.current_screen = Screen::Pause,
+            _ => {}
+        }
+        if let Some(limit_secs) = test.time_limit {
             if test.start_time.is_none() {
                 test.start_time = Some(Instant::now());
             }
 
-            // Check if time is up.
             if let Some(start) = test.start_time {
-                if start.elapsed().as_secs() >= time_limit as u64 {
+                if start.elapsed().as_secs() >= limit_secs as u64 {
                     test.time = Some(start.elapsed());
-                    for (i, c) in test.user_input.chars().enumerate() {
-                        if c == test_chars[i] {
-                            test.correct_char += 1;
-                        }
-                    }
+
+                    test.correct_char = test_chars
+                        .iter()
+                        .zip(test.user_input.chars())
+                        .filter(|(e, a)| *e == a)
+                        .count() as i32;
+
                     test.calculate_wpm_acc();
-                    let mut test_time: u16 = 0;
-                    if let Some(time_maybe) = test.time_limit {
-                        test_time = time_maybe;
-                    }
+                    test.word_count = (test.user_input.len() as i32) / 5;
+
                     if app.user.is_empty() {
                         app.current_screen = Screen::Login;
                     } else {
+                        let time = limit_secs as i32;
                         app.db.add_test(
                             app.user.clone(),
                             test.wpm,
+                            test.raw_wpm,
+                            test.accuracy,
                             test.word_count,
-                            test_time.into(),
+                            time,
                         );
                         app.history = app.db.get_all_tests().unwrap_or_default();
                         app.current_screen = Screen::Stats;
                     }
                 }
             }
-            // Process key press.
-            match key {
-                KeyCode::Char(c) => {
-                    test.user_input.push(c);
-                }
-                KeyCode::Backspace => {
-                    test.user_input.pop();
-                }
-                KeyCode::Esc => app.current_screen = Screen::Pause,
-                _ => {}
-            }
 
-            // If the user has typed 75% (or more) of the current text,
-            // append additional words (for example, 10 words).
-            let typed_len = test.user_input.len();
-            let total_len = test.test_text.len();
-            if total_len > 0 && (typed_len as f64 / total_len as f64) >= 0.75 {
+            //this appends words if it is a timed test and the user is almost out of words
+            let progress = test.user_input.len() as f64 / test.test_text.len() as f64;
+            if progress >= 0.75 {
                 test.append_words(10);
             }
         } else {
-            // Non-timed test branch: wait until the user finishes the test text.
-            if test.user_input.is_empty() {
+            //start timer on first keystroke
+            if test.start_time.is_none() && !test.user_input.is_empty() {
                 test.start_time = Some(Instant::now());
             }
-            if test.user_input.len() < test.test_text.len() {
-                match key {
-                    KeyCode::Char(c) => {
-                        test.user_input.push(c);
-                    }
-                    KeyCode::Backspace => {
-                        test.user_input.pop();
-                    }
-                    KeyCode::Esc => app.current_screen = Screen::Pause,
-                    _ => {}
-                }
-            } else {
-                if let Some(start) = test.start_time {
-                    test.time = Some(start.elapsed());
-                }
-                for (i, c) in test.user_input.chars().enumerate() {
-                    if c == test_chars[i] {
-                        test.correct_char += 1;
-                    }
-                }
-                test.calculate_wpm_acc();
-                let mut test_time: u16 = 0;
-                if let Some(time_maybe) = test.time_limit {
-                    test_time = time_maybe;
-                }
 
-                if app.user.is_empty() {
-                    app.current_screen = Screen::Login;
-                } else {
-                    let text_length = test.test_text.len() as i32;
-                    test.word_count = text_length / 5;
-                    app.db.add_test(
-                        app.user.clone(),
-                        test.wpm,
-                        test.word_count,
-                        test_time.into(),
-                    );
-                    test.test_text = "".to_string();
-                    test.user_input = "".to_string();
-                    app.current_screen = Screen::Stats;
-                    app.history = app.db.get_all_tests().unwrap();
-                }
+            if test.user_input.len() < test.test_text.len() {
+                return;
+            }
+
+            if let Some(start) = test.start_time {
+                test.time = Some(start.elapsed());
+            }
+
+            test.correct_char = test_chars
+                .iter()
+                .zip(test.user_input.chars())
+                .filter(|(e, a)| *e == a)
+                .count() as i32;
+
+            test.calculate_wpm_acc();
+            test.word_count = (test.test_text.len() as i32) / 5;
+
+            if app.user.is_empty() {
+                app.current_screen = Screen::Login;
+            } else {
+                let time = test.time_limit.unwrap_or(0) as i32;
+                app.db.add_test(
+                    app.user.clone(),
+                    test.wpm,
+                    test.raw_wpm,
+                    test.accuracy,
+                    test.word_count,
+                    time,
+                );
+                app.history = app.db.get_all_tests().unwrap_or_default();
+                app.current_screen = Screen::Stats;
             }
         }
     }
 
     fn calculate_wpm_acc(&mut self) {
-        if let Some(time) = self.time {
-            let secs = time.as_secs() as f64;
-            let minutes = secs / 60.0;
-            if secs > 0.0 {
-                // calculate WPM as (correct characters / 5) divided by elapsed minutes
-                // this is monkeytypes way of calculating wpm
-                self.wpm = ((self.correct_char as f64) / 5.0 / minutes).round() as i32;
-            } else {
-                self.wpm = 0;
+        let total_typed = self.user_input.chars().count() as i32;
+        if total_typed > 0 {
+            let pct = (self.correct_char as f64) / (total_typed as f64) * 100.0;
+            self.accuracy = pct.round() as i32;
+        } else {
+            self.accuracy = 0;
+        }
+        if let Some(duration) = self.time {
+            let mins = duration.as_secs_f64() / 60.0;
+            if mins > 0.0 {
+                self.wpm = ((self.correct_char as f64) / 5.0 / mins).round() as i32;
+                self.raw_wpm = ((self.user_input.len() as f64) / 5.0 / mins).round() as i32;
             }
         }
     }

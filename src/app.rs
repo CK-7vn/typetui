@@ -74,7 +74,7 @@ pub struct TypeTui {
     pub user: String,
     pub login_input: String,
     pub stats_list_state: ratatui::widgets::TableState,
-    pub history: Vec<(String, i32, i32, i32)>,
+    pub history: Vec<(String, i32, i32, i32, i32, i32)>,
     pub pause_selected: usize,
 }
 
@@ -255,15 +255,20 @@ impl TypeTui {
         self.user = uname.to_string();
         self.login_input.clear();
         if self.typing.wpm != 0 {
-            let wpm = self.typing.wpm;
-            let test_time = self.typing.time_limit.unwrap_or(0) as i32;
             let word_count = if self.typing.time_limit.is_some() {
                 (self.typing.user_input.len() as i32) / 5
             } else {
                 (self.typing.test_text.len() as i32) / 5
             };
             self.typing.word_count = word_count;
-            self.db.add_test(uname.clone(), wpm, word_count, test_time);
+            self.db.add_test(
+                uname.clone(),
+                self.typing.wpm,
+                self.typing.raw_wpm,
+                self.typing.accuracy,
+                word_count,
+                self.typing.time_limit.unwrap_or(0) as i32,
+            );
             self.history = self.db.get_all_tests().expect("error getting all tests");
             self.current_screen = Screen::Stats;
         } else {
@@ -364,10 +369,10 @@ impl TypeTui {
                 //then switch menu's based on that
                 KeyCode::Enter => match *selected_option {
                     0 => {
-                        app.reset_test();
-                        const DEFAULT_WORD_COUNT: usize = 50;
-                        app.typing.get_words(DEFAULT_WORD_COUNT);
-                        app.typing.time_limit = Some(15);
+                        //app.reset_test();
+                        //const DEFAULT_WORD_COUNT: usize = 50;
+                        //app.typing.get_words(DEFAULT_WORD_COUNT);
+                        //app.typing.time_limit = Some(15);
                         app.current_screen = Screen::Typing
                     }
                     1 => app.current_screen = Screen::Login,

@@ -29,23 +29,33 @@ impl DB {
         id integer primary key,
         username text not null ,
         wpm integer not null ,
+        raw_wpm integer,
+        accuracy integer not null,
         word_count integer not null,
         time integer not null)",
             [],
         );
         Ok(db)
     }
-    pub fn add_test(&mut self, username: String, wpm: i32, word_count: i32, time: i32) {
+    pub fn add_test(
+        &mut self,
+        username: String,
+        wpm: i32,
+        raw_wpm: i32,
+        accuracy: i32,
+        word_count: i32,
+        time: i32,
+    ) {
         let _ = self.conn.execute(
-            "INSERT INTO tests (username, wpm, word_count, time) values (?1, ?2, ?3, ?4)",
-            params![username, wpm, word_count, time],
+            "INSERT INTO tests (username, wpm, raw_wpm, accuracy, word_count, time) values (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![username, wpm,raw_wpm, accuracy, word_count, time],
         );
     }
-    pub fn get_all_tests(&self) -> Result<Vec<(String, i32, i32, i32)>> {
+    pub fn get_all_tests(&self) -> Result<Vec<(String, i32, i32, i32, i32, i32)>> {
         let mut stmt = self.conn.prepare(
-            "SELECT username, wpm, word_count, time
+            "SELECT username, wpm, raw_wpm, accuracy, word_count, time
            FROM tests
-          ORDER BY wpm DESC", // or ORDER BY wpm DESC, whatever your sort is
+          ORDER BY wpm DESC",
         )?;
         let rows = stmt.query_map([], |row| {
             Ok((
@@ -53,6 +63,8 @@ impl DB {
                 row.get::<_, i32>(1)?,
                 row.get::<_, i32>(2)?,
                 row.get::<_, i32>(3)?,
+                row.get::<_, i32>(4)?,
+                row.get::<_, i32>(5)?,
             ))
         })?;
         let mut results = Vec::new();
