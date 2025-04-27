@@ -369,10 +369,10 @@ impl TypeTui {
                 //then switch menu's based on that
                 KeyCode::Enter => match *selected_option {
                     0 => {
-                        //app.reset_test();
-                        //const DEFAULT_WORD_COUNT: usize = 50;
-                        //app.typing.get_words(DEFAULT_WORD_COUNT);
-                        //app.typing.time_limit = Some(15);
+                        app.reset_test();
+                        const DEFAULT_WORD_COUNT: usize = 50;
+                        app.typing.get_words(DEFAULT_WORD_COUNT);
+                        app.typing.time_limit = Some(15);
                         app.current_screen = Screen::Typing
                     }
                     1 => app.current_screen = Screen::Login,
